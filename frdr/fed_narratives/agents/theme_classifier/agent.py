@@ -3,64 +3,67 @@ from langchain_core.runnables import RunnableLambda
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field
 from typing import List
-from frdr.fed_narratives.utilities.llm import get_llm  # assumes you have a shared LLM loader
+from frdr.fed_narratives.utilities.llm import get_llm
 
-# Define output schema
-class ThemeTag(BaseModel):
+# Output schema for surprise calculation
+class SurpriseScore(BaseModel):
     paragraph: str = Field(..., description="Paragraph of text")
-    theme: str = Field(..., description="One of: 'inflation', 'employment', or 'other'")
+    theme: str = Field(..., description="Thematic classification, e.g., 'inflation', 'employment', or 'other'")
+    emphasis_score: float = Field(..., description="Emphasis score for this paragraph on a 0-1 scale")
+    baseline_score: float = Field(..., description="Rolling mean emphasis score for this theme")
+    surprise_score: float = Field(..., description="Absolute difference between emphasis_score and baseline_score")
+    direction: str = Field(..., description="'upward' or 'downward' depending on whether emphasis_score > baseline_score")
+    significant: bool = Field(..., description="True if surprise_score > threshold")
 
-class ThemeClassificationOutput(BaseModel):
-    tags: List[ThemeTag]
+class SurpriseIndexOutput(BaseModel):
+    scores: List[SurpriseScore]
 
-# LangChain parser
-parser = PydanticOutputParser(pydantic_object=ThemeClassificationOutput)
+parser = PydanticOutputParser(pydantic_object=SurpriseIndexOutput)
 
-# Prompt template
 prompt_template = """
 You are a Federal Reserve policy analyst.
 
-Classify the primary theme of each paragraph below as either:
-- "inflation"
-- "employment"
-- or "other"
+For each paragraph below:
+- Classify its primary theme ('inflation', 'employment', or 'other').
+- Assign an 'emphasis_score' from 0 (not emphasized) to 1 (very strongly emphasized) for the assigned theme.
+- The 'baseline_score' for each theme is provided for each paragraph.
+- Compute 'surprise_score' = abs(emphasis_score - baseline_score).
+- Set 'direction' as 'upward' if emphasis_score > baseline_score, else 'downward'.
+- If surprise_score > 0.1, set 'significant' = true; else false.
 
-Do not skip any paragraph. If unsure, always assign "other".
-
-Return your output in this JSON format:
+Return your output as JSON:
 {format_instructions}
 
-Paragraphs:
-{paragraphs}
+Input:
+Paragraphs: {paragraphs}
+Baselines: {baselines}
 """
 
-
-# Agent logic
-def classify_theme(paragraphs: List[str]) -> ThemeClassificationOutput:
+def calculate_surprise_index(paragraphs: List[str], theme_baselines: List[float]) -> SurpriseIndexOutput:
     llm = get_llm('llama3_local')
     para = "\n\n".join(paragraphs)
-    response = call_llm(llm, para)
-    response_text = response.content if not isinstance(response,str) else response
+    baseline_str = ", ".join([str(b) for b in theme_baselines])
+
+    response = call_llm(llm, para, baseline_str)
+    response_text = response.content if not isinstance(response, str) else response
     try:
-        classified_theme = parser.parse(response_text)
+        result = parser.parse(response_text)
     except Exception as e:
         try:
-            response = call_llm(llm, response_text)
+            response = call_llm(llm, response_text, baseline_str)
             response_text = response.content if not isinstance(response, str) else response
-            classified_theme = parser.parse(response_text)
-        except Exception as e :
-            print("Error parsing response {} ")
-            #raise e
+            result = parser.parse(response_text)
+        except Exception as e:
+            print("Error parsing response for surprise index.")
+            result = None
+    return result
 
-    return classified_theme
-
-
-def call_llm(llm, para):
+def call_llm(llm, para, baselines):
     formatted = parser.get_format_instructions()
     full_prompt = prompt_template.format(
         format_instructions=formatted,
-        paragraphs=para
+        paragraphs=para,
+        baselines=baselines
     )
     response = llm.invoke(full_prompt)
     return response
-

@@ -1,23 +1,26 @@
 from pydantic import BaseModel, Field
-from typing import List, Literal, Dict
+from typing import List, Literal
 
-# Input from ThemeClassifierAgent
 class ThemeTag(BaseModel):
     paragraph: str
     theme: Literal['inflation', 'employment', 'other']
 
+class EmphasisTag(BaseModel):
+    paragraph: str
+    theme: Literal['inflation', 'employment', 'other']
+    emphasis_score: float  # value between 0 and 1
+
 class EmphasisScoreOutput(BaseModel):
-    emphasis: Dict[str, float]  # e.g., {"inflation": 0.6, "employment": 0.3, "other": 0.1}
+    emphasis_tags: List[EmphasisTag]
 
-def compute_emphasis(tags: List[ThemeTag]) -> EmphasisScoreOutput:
-    total = len(tags)
-    if total == 0:
-        return EmphasisScoreOutput(emphasis={"inflation": 0.0, "employment": 0.0, "other": 0.0})
-
-    counts = {"inflation": 0, "employment": 0, "other": 0}
+def compute_emphasis_llm(tags: List[ThemeTag], llm=None) -> EmphasisScoreOutput:
+    # (Pseudo-LLM step, replace with real LLM batch call)
+    emphasis_tags = []
     for tag in tags:
-        counts[tag.theme] += 1
-
-    emphasis = {k: round(v / total, 3) for k, v in counts.items()}
-    return EmphasisScoreOutput(emphasis=emphasis)
-
+        # For demo, assign a dummy value or query LLM with paragraph content
+        # e.g., prompt: "Rate the emphasis of this paragraph on {tag.theme} from 0 to 1: {tag.paragraph}"
+        score = 0.5  # Replace with LLM call result
+        emphasis_tags.append(
+            EmphasisTag(paragraph=tag.paragraph, theme=tag.theme, emphasis_score=score)
+        )
+    return EmphasisScoreOutput(emphasis_tags=emphasis_tags)
