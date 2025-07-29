@@ -12,7 +12,7 @@ def main():
     historical_data = get_data()
     forecast_input = [historical_data]
     print("\nPerforming forecast...")
-    frequency_input = [0]
+    frequency_input = np.zeros((len(forecast_input)))
     # Get TimesFM v1 model
     model_v1 = get_timesfm_model("v1")
     # Get TimesFM v2 model
@@ -55,7 +55,6 @@ def plot_forecast(historical_data, predicted_future):
 
 
 if __name__ == '__main__':
-
     main()
 
 

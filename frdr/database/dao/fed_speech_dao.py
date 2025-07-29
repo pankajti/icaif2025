@@ -16,8 +16,11 @@ class FedSpeechDao():
         self.session.add(new_speech)
         self.session.commit()
 
+    def get_all_urls(self):
+        urls = self.session.query(FedSpeech.url)
+        return [url[0] for url in urls.all()]
 
-if __name__ == '__main__':
+def main():
     new_speech = FedSpeech(
         date=datetime(2023, 12, 15),
         speaker="Jerome Powell",
@@ -29,5 +32,14 @@ if __name__ == '__main__':
 
     dao = FedSpeechDao()
     dao.add_fed_speech(new_speech)
+
+
+if __name__ == '__main__':
+    dao = FedSpeechDao()
+
+    urls = dao.get_all_urls()
+    print(urls)
+    #main()
+
 
 

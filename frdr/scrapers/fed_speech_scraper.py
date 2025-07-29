@@ -9,11 +9,11 @@ from frdr.database.dao.fed_speech_dao import FedSpeechDao
 from frdr.database.schema.core import FedSpeech
 
 BASE_URL = "https://www.federalreserve.gov"
-MAX_PAGES_TO_LOAD=60
+MAX_PAGES_TO_LOAD=65
 
 def get_driver():
     options = Options()
-    options.add_argument("--headless")
+    #options.add_argument("--headless")
     return webdriver.Chrome(options=options)
 
 #article > ul.visible-xs-inline-block.ng-untouched.ng-valid.ng-isolate-scope.pagination.ng-not-empty.ng-dirty.ng-valid-parse > li.pagination-next.ng-scope > a
@@ -47,9 +47,10 @@ def get_all_speech_links_click(driver):
             if link_tag and date_div:
                 title = link_tag.text.strip()
                 url = BASE_URL + link_tag["href"]
+                location = div.find('p', class_='result__location').text
                 try:
                     date = datetime.strptime(date_div.text.strip(), "%m/%d/%Y")
-                    all_speeches.append((title, url, date))
+                    all_speeches.append((title, url, date,location))
                 except ValueError:
                     continue  # skip invalid dates
 
@@ -66,6 +67,10 @@ def get_all_speech_links_click(driver):
             print(all_speeches)
             print("error")
             break  # no "Next" button found
+        except Exception as e:
+            print(f"exception for page {total_pages}")
+
+            raise e
 
     return all_speeches
 
@@ -88,7 +93,7 @@ def scrape_and_store():
 
     # article > ul.visible-xs-inline-block.ng-untouched.ng-valid.ng-isolate-scope.pagination.ng-not-empty.ng-dirty.ng-valid-parse
 
-    for title, url, date in tqdm(speeches, desc="Scraping speeches"):
+    for title, url, date,location in tqdm(speeches, desc="Scraping speeches"):
         try:
             text = fetch_speech_text(driver, url)
             speaker = extract_speaker(text)
@@ -98,7 +103,7 @@ def scrape_and_store():
                 url=url,
                 text=text,
                 speaker=speaker,
-                location=None
+                location=location
             )
             dao.add_fed_speech(speech)
         except Exception as e:
@@ -108,4 +113,3 @@ def scrape_and_store():
 
 if __name__ == "__main__":
     scrape_and_store()
-

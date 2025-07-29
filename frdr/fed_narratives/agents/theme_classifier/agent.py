@@ -37,7 +37,7 @@ Paragraphs:
 
 # Agent logic
 def classify_theme(paragraphs: List[str]) -> ThemeClassificationOutput:
-    llm = get_llm()
+    llm = get_llm('llama3_local')
     para = "\n\n".join(paragraphs)
     response = call_llm(llm, para)
     response_text = response.content if not isinstance(response,str) else response

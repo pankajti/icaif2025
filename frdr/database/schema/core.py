@@ -24,7 +24,7 @@ class FedSpeech(Base):
 
 
 class FedSpeechAnalysis(Base):
-    __tablename__ = "fed_speech_analysis"
+    __tablename__ = "fed_speech_analysis_for_icaif2025"
 
     id = Column(Integer, primary_key=True)
     speech_id = Column(Integer, ForeignKey("fed_speeches.id"), unique=True)
