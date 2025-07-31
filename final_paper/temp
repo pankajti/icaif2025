@@ -1,0 +1,17 @@
+\subsection{Speech Corpus and Annotation Pipeline}
+We constructed a comprehensive dataset of Federal Reserve speeches from 1973 to June 2025. Speech texts and metadata (e.g., speaker name, title, date, URL) were collected using a Selenium-based web scraper that traversed the official Federal Reserve Board and regional bank websites. The scraper automatically paginated archive pages, followed individual speech links, and extracted the full text content, which was cleaned and stored in a PostgreSQL database for downstream use.
+
+To analyze the thematic focus of these speeches, we deployed a modular agentic natural language processing (NLP) pipeline built using the \texttt{LangGraph} framework. LangGraph enables stateful, conditional flows between multiple large language model (LLM) agents, allowing compositional reasoning and fine-grained control. Our implementation defines two agents:
+
+\begin{itemize}
+  \item \textbf{Theme Classifier Agent:} For each speech, this agent first splits the content into paragraphs and uses a domain-specific LLM prompt to assign one of three labels to each paragraph: \textit{inflation}, \textit{employment}, or \textit{other}. The agent is implemented using \texttt{LangChain} with a local deployment of LLaMA 3, and wrapped into a LangGraph node using \texttt{RunnableLambda}.
+  \item \textbf{Emphasis Scorer Agent:} This agent aggregates paragraph-level tags to compute speech-level emphasis scores for each theme. Specifically, the score for theme $t$ is defined as:
+  \begin{equation}
+  \mathrm{score}_{t} = \frac{\# \text{ paragraphs classified as } t}{\text{total paragraphs in speech}}.
+  \end{equation}
+\end{itemize}
+
+LangGraph coordinates the execution of these agents and maintains speech metadata and intermediate outputs in the graph state. This design allows dynamic branching (e.g., retrying LLM parsing failures), and is extendable for future analysis such as detecting subthemes or uncertainty framing.
+
+The final output of this pipeline is a structured dataset \texttt{fed\_speeches\_emphasis\_score.csv}, containing for each speech: the date, speaker, Fed Chair at the time, and emphasis scores for inflation and employment. This data was aligned to monthly frequency for correlation with macroeconomic indicators.
+
